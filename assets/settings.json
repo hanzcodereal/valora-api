@@ -1,0 +1,404 @@
+{
+  "name": "Valora-Api",
+  "version": "v2.0",
+  "description": "simple and powerful tools API and easy to use",
+  "bannerImage": "/assets/banner.jpg",
+  "header": {
+    "status": "Online!"
+  },
+  "apiSettings": {
+    "creator": "hanz",
+    "apikey": [
+      "valora-api"
+    ]
+  },
+  "categories": [
+    {
+      "name": "Random",
+      "items": [
+        {
+          "name": "Blue Archive Image",
+          "desc": "Menampilkan gambar acak karakter dari game Blue Archive.",
+          "path": "/random/ba",
+          "status": "ready"
+        },
+        {
+          "name": "Kutipan Tokoh",
+          "desc": "Menampilkan kutipan acak dari tokoh terkenal.",
+          "path": "/random/tokoh-quotes",
+          "status": "ready"
+        },
+        {
+          "name": "Kutipan Anime",
+          "desc": "Menampilkan kutipan acak dari karakter anime.",
+          "path": "/random/anime-quotes",
+          "status": "ready"
+        }
+      ]
+    },
+    {
+      "name": "Search",
+      "items": [
+        {
+          "name": "Berita Anime",
+          "desc": "Menampilkan daftar berita anime terbaru dari Kaori Nusantara.",
+          "path": "/search/anime-news",
+          "status": "ready"
+        },
+        {
+          "name": "Youtube",
+          "desc": "Melakukan pencarian video di platform YouTube.",
+          "path": "/search/youtube?query=",
+          "status": "ready",
+          "params": {
+            "query": "Kata kunci untuk pencarian video."
+          }
+        },
+        {
+          "name": "Youtube Music",
+          "desc": "Melakukan pencarian lagu di YouTube Music.",
+          "path": "/search/youtube-music?query=",
+          "status": "ready",
+          "params": {
+            "query": "Judul lagu atau nama artis."
+          }
+        },
+        {
+          "name": "Spotify Search",
+          "desc": "Melakukan pencarian lagu berdasarkan judul atau artis di Spotify.",
+          "path": "/search/spotify?query=",
+          "status": "ready",
+          "params": {
+            "query": "Judul lagu atau nama artis."
+          }
+        },
+        {
+          "name": "Lirik Lagu",
+          "desc": "Mencari lirik lagu berdasarkan judul.",
+          "path": "/search/lyrics?title=",
+          "status": "ready",
+          "params": {
+            "title": "Judul lagu yang ingin dicari liriknya."
+          }
+        },
+        {
+          "name": "Google Image Search",
+          "desc": "Melakukan pencarian gambar di Google Images.",
+          "path": "/search/gimage?q=",
+          "status": "ready",
+          "params": {
+            "q": "Kata kunci untuk pencarian gambar."
+          }
+        },
+        {
+          "name": "Pinterest Search",
+          "desc": "Melakukan pencarian pin/gambar di Pinterest.",
+          "path": "/search/pinterest?q=",
+          "status": "ready",
+          "params": {
+            "q": "Kata kunci untuk pencarian pin."
+          }
+        },
+        {
+          "name": "Play Store Search",
+          "desc": "Mencari aplikasi di Google Play Store.",
+          "path": "/search/playstore?q=",
+          "status": "ready",
+          "params": {
+            "q": "Nama aplikasi yang ingin dicari."
+          }
+        },
+        {
+          "name": "NPM Package Search",
+          "desc": "Mencari package di Node Package Manager (NPM).",
+          "path": "/search/npm?q=",
+          "status": "ready",
+          "params": {
+            "q": "Nama package NPM yang ingin dicari."
+          }
+        },
+        {
+          "name": "Happymod Search",
+          "desc": "Mencari aplikasi atau game modifikasi di Happymod.",
+          "path": "/search/happymod?q=",
+          "status": "ready",
+          "params": {
+            "q": "Nama aplikasi atau game yang ingin dicari."
+          }
+        },
+        {
+          "name": "Tiktok Search",
+          "desc": "Melakukan pencarian video di TikTok.",
+          "path": "/search/tiktok?q=",
+          "status": "ready",
+          "params": {
+            "q": "Kata kunci untuk pencarian video TikTok."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Downloader",
+      "items": [
+        {
+          "name": "Tiktok Downloader",
+          "desc": "Mengunduh video dari TikTok tanpa watermark.",
+          "path": "/download/tiktok?url=",
+          "status": "ready",
+          "params": {
+            "url": "URL video TikTok."
+          }
+        },
+        {
+          "name": "Douyin Downloader",
+          "desc": "Mengunduh video dari Douyin (versi China dari TikTok).",
+          "path": "/download/douyin?url=",
+          "status": "ready",
+          "params": {
+            "url": "URL video Douyin."
+          }
+        },
+        {
+          "name": "Snackvideo Downloader",
+          "desc": "Mengunduh video dari Snackvideo.",
+          "path": "/download/snackvideo?url=",
+          "status": "ready",
+          "params": {
+            "url": "URL video Snackvideo."
+          }
+        },
+        {
+          "name": "Instagram Downloader",
+          "desc": "Mengunduh foto atau video dari Instagram.",
+          "path": "/download/instagram?url=",
+          "status": "ready",
+          "params": {
+            "url": "URL postingan Instagram."
+          }
+        },
+        {
+          "name": "Capcut Downloader",
+          "desc": "Mengunduh video dari template Capcut.",
+          "path": "/download/capcut?url=",
+          "status": "ready",
+          "params": {
+            "url": "URL template Capcut."
+          }
+        },
+        {
+          "name": "Youtube Downloader",
+          "desc": "Mengunduh video atau audio dari YouTube dengan pilihan kualitas.",
+          "path": "/download/youtube?url=&type=&quality=",
+          "status": "ready",
+          "params": {
+            "url": "URL video YouTube.",
+            "type": "Jenis unduhan: video atau audio (default: video).",
+            "quality": "Kualitas video/audio, contoh: 720P atau 128KBPS."
+          }
+        },
+        {
+          "name": "Spotify Downloader",
+          "desc": "Mengunduh lagu dari Spotify.",
+          "path": "/download/spotify?url=",
+          "status": "ready",
+          "params": {
+            "url": "URL track Spotify."
+          }
+        },
+        {
+          "name": "All-in-One Downloader",
+          "desc": "Mengunduh media dari berbagai platform secara otomatis.",
+          "path": "/download/aio?url=",
+          "status": "ready",
+          "params": {
+            "url": "URL media yang ingin diunduh."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Info",
+      "items": [
+        {
+          "name": "Cek Cuaca",
+          "desc": "Menampilkan prakiraan cuaca BMKG berdasarkan nama wilayah.",
+          "path": "/info/cek-cuaca?query=",
+          "status": "ready",
+          "params": {
+            "query": "Nama wilayah, contoh: Jakarta."
+          }
+        },
+        {
+          "name": "Cek Gempa",
+          "desc": "Menampilkan informasi gempa terkini dari BMKG.",
+          "path": "/info/cek-gempa",
+          "status": "ready"
+        }
+      ]
+    },
+    {
+      "name": "Canvas",
+      "items": [
+        {
+          "name": "Brat HD",
+          "desc": "Membuat gambar bertema Brat dengan kualitas HD dari teks.",
+          "path": "/canvas/brathd?text=",
+          "status": "ready",
+          "params": {
+            "text": "Teks yang ingin dijadikan gambar."
+          }
+        },
+        {
+          "name": "Brat Video HD",
+          "desc": "Membuat video bertema Brat dengan kualitas HD dari teks.",
+          "path": "/canvas/bratvidhd?text=",
+          "status": "ready",
+          "params": {
+            "text": "Teks yang ingin dijadikan video."
+          }
+        },
+        {
+          "name": "IQC",
+          "desc": "Membuat gambar kutipan bergaya status ponsel (IQC).",
+          "path": "/canvas/iqc?text=&provider=&jam=&baterai=",
+          "status": "ready",
+          "params": {
+            "text": "Teks kutipan yang ditampilkan.",
+            "provider": "Nama provider yang ditampilkan di status bar.",
+            "jam": "Jam yang ditampilkan di status bar.",
+            "baterai": "Persentase baterai yang ditampilkan."
+          }
+        },
+        {
+          "name": "IQC Pink",
+          "desc": "Membuat gambar IQC dengan tema warna pink.",
+          "path": "/canvas/iqc-pink?text=&time=",
+          "status": "ready",
+          "params": {
+            "text": "Teks kutipan yang ditampilkan.",
+            "time": "Waktu yang ditampilkan pada gambar (opsional)."
+          }
+        },
+        {
+          "name": "Reminder",
+          "desc": "Membuat gambar pengingat (reminder) dengan teks dan nama pembuat.",
+          "path": "/canvas/reminder?text=&author=",
+          "status": "ready",
+          "params": {
+            "text": "Isi teks pengingat.",
+            "author": "Nama penulis pengingat."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tools",
+      "items": [
+        {
+          "name": "Spam OTP",
+          "desc": "Mengirimkan banyak permintaan OTP ke nomor telepon target.",
+          "path": "/tools/spam-otp?phone=",
+          "status": "ready",
+          "params": {
+            "phone": "Nomor telepon target (contoh: 08123456789)."
+          }
+        },
+        {
+          "name": "Text-to-Speech",
+          "desc": "Mengubah teks menjadi suara (TTS) dengan berbagai pilihan suara, termasuk karakter anime.",
+          "path": "/tools/text-to-speech?text=",
+          "status": "ready",
+          "params": {
+            "text": "Teks yang ingin diubah menjadi suara."
+          }
+        },
+        {
+          "name": "Emoji GIF",
+          "desc": "Mengubah emoji menjadi gambar GIF animasi.",
+          "path": "/tools/emojigif?emoji=",
+          "status": "ready",
+          "params": {
+            "emoji": "Emoji yang ingin diubah menjadi GIF."
+          }
+        },
+        {
+          "name": "Emoji Mix",
+          "desc": "Menggabungkan dua emoji menjadi satu emoji baru yang unik dalam bentuk gambar.",
+          "path": "/tools/emojimix?emoji1=&emoji2=",
+          "status": "ready",
+          "params": {
+            "emoji1": "Emoji pertama (contoh: 😂).",
+            "emoji2": "Emoji kedua (contoh: 👍)."
+          }
+        },
+        {
+          "name": "Host Info",
+          "desc": "Mendapatkan informasi detail mengenai sebuah host (IP atau domain).",
+          "path": "/tools/hostinfo?host=",
+          "status": "ready",
+          "params": {
+            "host": "Alamat IP atau nama domain (contoh: google.com)."
+          }
+        },
+        {
+          "name": "Remove Background",
+          "desc": "Menghapus background pada gambar secara otomatis.",
+          "path": "/tools/removebg?url=",
+          "status": "ready",
+          "params": {
+            "url": "URL gambar yang ingin dihapus background-nya."
+          }
+        },
+        {
+          "name": "HD Upscale",
+          "desc": "Meningkatkan resolusi gambar (upscale) hingga kualitas HD.",
+          "path": "/tools/hdr?url=&resolution=&enhance=",
+          "status": "ready",
+          "params": {
+            "url": "URL gambar (format jpg/jpeg/png/webp/gif).",
+            "resolution": "Resolusi tujuan: 480p/720p/1080p/2k/4k/8k/12k.",
+            "enhance": "Aktifkan peningkatan kualitas tambahan: true/false."
+          }
+        },
+        {
+          "name": "Short URL",
+          "desc": "Memperpendek tautan panjang menggunakan TinyURL.",
+          "path": "/tools/shorturl-tinyurl?url=",
+          "status": "ready",
+          "params": {
+            "url": "URL panjang yang ingin diperpendek."
+          }
+        },
+        {
+          "name": "Bypass Link",
+          "desc": "Melewati (bypass) short link yang berisi iklan.",
+          "path": "/tools/bypass?url=",
+          "status": "ready",
+          "params": {
+            "url": "URL short link yang ingin di-bypass."
+          }
+        },
+        {
+          "name": "Play Youtube",
+          "desc": "Mengambil link audio dari sebuah video YouTube.",
+          "path": "/tools/play-youtube?url=",
+          "status": "ready",
+          "params": {
+            "url": "URL video YouTube."
+          }
+        }
+      ]
+    },
+    {
+      "name": "API",
+      "items": [
+        {
+          "name": "API Status",
+          "desc": "Memeriksa status layanan API, termasuk total request, total fitur, dan waktu aktif (uptime).",
+          "path": "/api/status",
+          "status": "ready"
+        }
+      ]
+    }
+  ]
+          }

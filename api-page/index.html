@@ -168,62 +168,40 @@
         }
     }
 
-    const responseMediaStore = {};
-
-    const HTTP_STATUS_MAP = {
-        200: 'OK — Request successful',
-        400: 'Bad Request — Invalid parameters',
-        401: 'Unauthorized — Invalid or missing API key',
-        403: 'Forbidden — Access denied',
-        404: 'Not Found — Resource not found',
-        429: 'Too Many Requests — Rate limit exceeded',
-        500: 'Internal Server Error — Server error'
-    };
-
-    function getStatusDescription(code) {
-        if (HTTP_STATUS_MAP[code]) return HTTP_STATUS_MAP[code];
-        if (code >= 200 && code < 300) return 'Success';
-        if (code >= 300 && code < 400) return 'Redirection';
-        if (code >= 400 && code < 500) return 'Client Error';
-        if (code >= 500) return 'Server Error';
-        return 'Unknown Status';
-    }
-
-    function setStatusTable(codeEl, descEl, code) {
-        const isSuccess = code >= 200 && code < 300;
-        const colorClass = isSuccess ? 'text-green-400' : 'text-red-400';
-        codeEl.textContent = code;
-        codeEl.className = `px-2 py-1 border border-gray-700 font-bold bg-gray-900 ${colorClass}`;
-        descEl.textContent = getStatusDescription(code);
-        descEl.className = `px-2 py-1 border border-gray-700 bg-gray-900 ${colorClass}`;
-    }
-
-    function copyText(elementId, btnEl) {
-        const el = document.getElementById(elementId);
+    function copyToClipboard(sourceId, btn) {
+        const el = document.getElementById(sourceId);
         if (!el) return;
-        const text = el.textContent;
-        if (!text) return;
+        const text = el.dataset.raw !== undefined ? el.dataset.raw : el.textContent;
         navigator.clipboard.writeText(text).then(() => {
-            const original = btnEl.dataset.label || btnEl.textContent;
-            btnEl.dataset.label = original;
-            btnEl.textContent = '✓ Copied';
-            btnEl.classList.add('text-green-400', 'border-green-500');
+            const original = btn.textContent;
+            btn.textContent = '✓ Copied';
+            btn.classList.add('text-green-400');
             setTimeout(() => {
-                btnEl.textContent = original;
-                btnEl.classList.remove('text-green-400', 'border-green-500');
+                btn.textContent = original;
+                btn.classList.remove('text-green-400');
             }, 2000);
-        }).catch(() => {});
+        });
     }
 
-    function downloadResponse(catIndex, endpointIndex) {
-        const media = responseMediaStore[`${catIndex}-${endpointIndex}`];
-        if (!media) return;
+    function downloadBlobUrl(blobUrl, filename) {
         const a = document.createElement('a');
-        a.href = media.url;
-        a.download = media.filename;
+        a.href = blobUrl;
+        a.download = filename;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
+    }
+
+    function getExtensionFromContentType(contentType) {
+        if (!contentType) return 'bin';
+        const map = {
+            'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif',
+            'image/webp': 'webp', 'image/svg+xml': 'svg',
+            'video/mp4': 'mp4', 'video/webm': 'webm', 'video/quicktime': 'mov',
+            'audio/mpeg': 'mp3', 'audio/ogg': 'ogg', 'audio/wav': 'wav'
+        };
+        const base = contentType.split(';')[0].trim();
+        return map[base] || base.split('/')[1] || 'bin';
     }
 
     async function executeRequest(event, catIndex, endpointIndex, method, path, produces) {
@@ -231,14 +209,12 @@
         const form = document.getElementById(`form-${catIndex}-${endpointIndex}`);
         const responseDiv = document.getElementById(`response-${catIndex}-${endpointIndex}`);
         const responseContent = document.getElementById(`response-content-${catIndex}-${endpointIndex}`);
+        const responseActions = document.getElementById(`response-actions-${catIndex}-${endpointIndex}`);
+        const statusBadge = document.getElementById(`status-badge-${catIndex}-${endpointIndex}`);
+        const latencyBadge = document.getElementById(`latency-badge-${catIndex}-${endpointIndex}`);
+        const urlText = document.getElementById(`url-text-${catIndex}-${endpointIndex}`);
+        const curlText = document.getElementById(`curl-text-${catIndex}-${endpointIndex}`);
         const clearButton = document.getElementById(`clear-${catIndex}-${endpointIndex}`);
-        const statusCodeCell = document.getElementById(`response-status-code-${catIndex}-${endpointIndex}`);
-        const statusDescCell = document.getElementById(`response-status-desc-${catIndex}-${endpointIndex}`);
-        const timeValue = document.getElementById(`response-time-value-${catIndex}-${endpointIndex}`);
-        const urlCode = document.getElementById(`response-url-${catIndex}-${endpointIndex}`);
-        const curlCode = document.getElementById(`response-curl-${catIndex}-${endpointIndex}`);
-        const downloadBtn = document.getElementById(`download-btn-${catIndex}-${endpointIndex}`);
-        const copyResponseBtn = document.getElementById(`copy-response-btn-${catIndex}-${endpointIndex}`);
 
         const formData = new FormData(form);
         const params = new URLSearchParams();
@@ -248,72 +224,69 @@
             }
         }
 
-        const fullPath = `${path}?${params.toString()}`;
+        // Only append "?" when there are actual query parameters
+        const queryString = params.toString();
+        const fullPath = queryString ? `${path}?${queryString}` : path;
         const fullUrl = `${window.location.origin}${fullPath}`;
         const curlCmd = `curl -X ${method} "${fullUrl}"`;
 
         responseDiv.classList.remove('hidden');
         responseContent.innerHTML = '<div class="loader"></div>';
-        statusCodeCell.textContent = '...';
-        statusCodeCell.className = 'px-2 py-1 border border-gray-700 font-bold bg-gray-900 text-slate-400';
-        statusDescCell.textContent = 'Waiting for response...';
-        statusDescCell.className = 'px-2 py-1 border border-gray-700 bg-gray-900 text-slate-400';
-        timeValue.textContent = '';
-        urlCode.textContent = fullUrl;
-        curlCode.textContent = curlCmd;
-        downloadBtn.classList.add('hidden');
-        copyResponseBtn.classList.add('hidden');
-
-        const mediaKey = `${catIndex}-${endpointIndex}`;
-        if (responseMediaStore[mediaKey]) {
-            URL.revokeObjectURL(responseMediaStore[mediaKey].url);
-            delete responseMediaStore[mediaKey];
-        }
+        responseActions.innerHTML = '';
+        statusBadge.textContent = '';
+        statusBadge.className = 'px-2 py-0.5 rounded text-xs font-bold';
+        latencyBadge.textContent = '';
+        urlText.textContent = fullUrl;
+        urlText.dataset.raw = fullUrl;
+        curlText.textContent = curlCmd;
+        curlText.dataset.raw = curlCmd;
 
         const tStart = performance.now();
         try {
             const response = await fetch(fullPath);
-            const latency = (performance.now() - tStart).toFixed(0);
-            timeValue.textContent = `${latency} ms`;
-
-            setStatusTable(statusCodeCell, statusDescCell, response.status);
-
+            const tEnd = performance.now();
+            const latency = (tEnd - tStart).toFixed(0);
             const contentType = response.headers.get("content-type") || '';
+
+            const isSuccess = response.status >= 200 && response.status < 300;
+            statusBadge.textContent = response.status;
+            statusBadge.classList.add(isSuccess ? 'bg-green-500/20' : 'bg-red-500/20', isSuccess ? 'text-green-400' : 'text-red-400');
+            latencyBadge.innerHTML = `<span class="material-icons text-xs align-middle" style="font-size:12px;">bolt</span> ${latency} ms`;
 
             if (contentType.includes("application/json")) {
                 const data = await response.json();
-                responseContent.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
-                copyResponseBtn.classList.remove('hidden');
+                const jsonText = JSON.stringify(data, null, 2);
+                responseContent.innerHTML = `<pre id="json-text-${catIndex}-${endpointIndex}">${jsonText.replace(/</g, '&lt;')}</pre>`;
+                document.getElementById(`json-text-${catIndex}-${endpointIndex}`).dataset.raw = jsonText;
+                responseActions.innerHTML = `<button type="button" onclick="copyToClipboard('json-text-${catIndex}-${endpointIndex}', this)" class="px-2 py-0.5 bg-gray-700 hover:bg-gray-600 border border-gray-600 rounded text-xs">Copy Response</button>`;
             } else if (contentType.startsWith("image/") || contentType.startsWith("video/") || contentType.startsWith("audio/")) {
                 const blob = await response.blob();
                 const mediaUrl = URL.createObjectURL(blob);
-                const subtype = (contentType.split('/')[1] || 'bin').split(';')[0];
-                const filename = `response-${catIndex}-${endpointIndex}.${subtype}`;
+                const ext = getExtensionFromContentType(contentType);
+                const filename = `response-${catIndex}-${endpointIndex}.${ext}`;
 
                 if (contentType.startsWith("image/")) {
-                    responseContent.innerHTML = `<img src="${mediaUrl}" class="max-w-full h-auto rounded-md">`;
+                    responseContent.innerHTML = `<div class="flex justify-center py-2"><img src="${mediaUrl}" class="max-w-full h-auto rounded-md" alt="Response"></div>`;
                 } else if (contentType.startsWith("video/")) {
-                    responseContent.innerHTML = `<video src="${mediaUrl}" controls class="max-w-full h-auto rounded-md"></video>`;
+                    responseContent.innerHTML = `<div class="flex justify-center py-2"><video src="${mediaUrl}" controls class="max-w-full h-auto rounded-md"></video></div>`;
                 } else {
-                    responseContent.innerHTML = `<audio src="${mediaUrl}" controls class="w-full"></audio>`;
+                    responseContent.innerHTML = `<div class="flex justify-center py-2"><audio src="${mediaUrl}" controls></audio></div>`;
                 }
 
-                responseMediaStore[mediaKey] = { url: mediaUrl, filename };
-                downloadBtn.classList.remove('hidden');
+                responseActions.innerHTML = `<button type="button" onclick="downloadBlobUrl('${mediaUrl}', '${filename}')" class="px-2 py-0.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-xs flex items-center gap-1"><span class="material-icons text-xs" style="font-size:12px;">download</span> Download</button>`;
             } else {
                 const text = await response.text();
-                responseContent.innerHTML = `<pre>${text}</pre>`;
-                copyResponseBtn.classList.remove('hidden');
+                responseContent.innerHTML = `<pre id="json-text-${catIndex}-${endpointIndex}">${text.replace(/</g, '&lt;')}</pre>`;
+                document.getElementById(`json-text-${catIndex}-${endpointIndex}`).dataset.raw = text;
+                responseActions.innerHTML = `<button type="button" onclick="copyToClipboard('json-text-${catIndex}-${endpointIndex}', this)" class="px-2 py-0.5 bg-gray-700 hover:bg-gray-600 border border-gray-600 rounded text-xs">Copy Response</button>`;
             }
         } catch (error) {
-            const latency = (performance.now() - tStart).toFixed(0);
-            timeValue.textContent = `${latency} ms`;
-            statusCodeCell.textContent = 'ERR';
-            statusCodeCell.className = 'px-2 py-1 border border-gray-700 font-bold bg-gray-900 text-red-400';
-            statusDescCell.textContent = 'Network Error — Request failed';
-            statusDescCell.className = 'px-2 py-1 border border-gray-700 bg-gray-900 text-red-400';
-            responseContent.innerHTML = `<pre>${error}</pre>`;
-            copyResponseBtn.classList.remove('hidden');
+            const tEnd = performance.now();
+            const latency = (tEnd - tStart).toFixed(0);
+            statusBadge.textContent = 'ERR';
+            statusBadge.classList.add('bg-red-500/20', 'text-red-400');
+            latencyBadge.innerHTML = `<span class="material-icons text-xs align-middle" style="font-size:12px;">bolt</span> ${latency} ms`;
+            responseContent.innerHTML = `<pre>${String(error)}</pre>`;
         }
         clearButton.classList.remove('hidden');
     }
@@ -322,28 +295,7 @@
         const responseDiv = document.getElementById(`response-${catIndex}-${endpointIndex}`);
         const responseContent = document.getElementById(`response-content-${catIndex}-${endpointIndex}`);
         const clearButton = document.getElementById(`clear-${catIndex}-${endpointIndex}`);
-        const statusCodeCell = document.getElementById(`response-status-code-${catIndex}-${endpointIndex}`);
-        const statusDescCell = document.getElementById(`response-status-desc-${catIndex}-${endpointIndex}`);
-        const timeValue = document.getElementById(`response-time-value-${catIndex}-${endpointIndex}`);
-        const urlCode = document.getElementById(`response-url-${catIndex}-${endpointIndex}`);
-        const curlCode = document.getElementById(`response-curl-${catIndex}-${endpointIndex}`);
-        const downloadBtn = document.getElementById(`download-btn-${catIndex}-${endpointIndex}`);
-
-        const mediaKey = `${catIndex}-${endpointIndex}`;
-        if (responseMediaStore[mediaKey]) {
-            URL.revokeObjectURL(responseMediaStore[mediaKey].url);
-            delete responseMediaStore[mediaKey];
-        }
-
         responseContent.innerHTML = '';
-        statusCodeCell.textContent = '';
-        statusCodeCell.className = 'px-2 py-1 border border-gray-700 font-bold bg-gray-900';
-        statusDescCell.textContent = '';
-        statusDescCell.className = 'px-2 py-1 border border-gray-700 bg-gray-900';
-        timeValue.textContent = '';
-        urlCode.textContent = '';
-        curlCode.textContent = '';
-        downloadBtn.classList.add('hidden');
         responseDiv.classList.add('hidden');
         clearButton.classList.add('hidden');
     }
@@ -397,9 +349,9 @@
                                                 ${method}
                                             </span>
                                             <div class="flex flex-col min-w-0 flex-1">
-                                                <span class="font-semibold truncate max-w-[90%] font-mono text-sm" title="${path}">${path}</span>
+                                                <span class="font-semibold truncate max-w-[90%] text-sm" title="${item.name}">${item.name}</span>
                                                 <div class="flex items-center">
-                                                    <span class="text-xs text-gray-400 truncate max-w-[90%]" title="${item.name}">${item.name}</span>
+                                                    <span class="text-xs text-gray-400 truncate max-w-[90%] font-mono" title="${path}">${path}</span>
                                                     <span class="ml-2 px-2 py-0.5 text-xs rounded-full ${statusClass}">${item.status || 'ready'}</span>
                                                 </div>
                                             </div>
@@ -489,60 +441,38 @@
 
                     html += `
                                         <div id="response-${catIndex}-${endpointIndex}" class="hidden mt-4">
-                                            <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
-                                                <div class="text-gray-300 font-bold text-xs flex items-center">
-                                                    <span class="material-icons text-sm mr-1">code</span>
-                                                    RESPONSE
-                                                </div>
-                                                <span class="text-xs font-semibold text-slate-400 bg-gray-800 border border-gray-700 px-2 py-1 flex items-center gap-1">
-                                                    <span class="material-icons" style="font-size:12px;">bolt</span>
-                                                    <span id="response-time-value-${catIndex}-${endpointIndex}"></span>
-                                                </span>
+                                            <div class="text-gray-300 font-bold text-xs mb-2 flex items-center">
+                                                <span class="material-icons text-sm mr-1">code</span>
+                                                RESPONSE
                                             </div>
-
-                                            <div class="bg-gray-800 border border-gray-700 p-3 mb-2 text-xs space-y-3">
-                                                <div>
-                                                    <span class="text-slate-400 font-semibold block mb-1">Response Status</span>
-                                                    <table class="w-full border border-gray-700 border-collapse">
-                                                        <thead>
-                                                            <tr class="bg-gray-900 text-slate-400">
-                                                                <th class="px-2 py-1 border border-gray-700 text-left" style="width:70px;">Code</th>
-                                                                <th class="px-2 py-1 border border-gray-700 text-left">Description</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            <tr>
-                                                                <td id="response-status-code-${catIndex}-${endpointIndex}" class="px-2 py-1 border border-gray-700 font-bold bg-gray-900"></td>
-                                                                <td id="response-status-desc-${catIndex}-${endpointIndex}" class="px-2 py-1 border border-gray-700 bg-gray-900"></td>
-                                                            </tr>
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                                <div>
-                                                    <div class="flex items-center justify-between mb-1">
-                                                        <span class="text-slate-400 font-semibold">Request URL</span>
-                                                        <button type="button" onclick="copyText('response-url-${catIndex}-${endpointIndex}', this)" class="text-xs px-2 py-1 border border-gray-600 hover:border-indigo-500 text-slate-300 transition-colors duration-150">Copy URL</button>
+                                            <div class="bg-gray-900 text-white text-xs border border-gray-700">
+                                                <div class="flex items-center justify-between px-4 py-2 border-b border-gray-700 flex-wrap gap-2">
+                                                    <div class="flex items-center gap-2">
+                                                        <span class="text-gray-400">Status:</span>
+                                                        <span id="status-badge-${catIndex}-${endpointIndex}" class="px-2 py-0.5 rounded text-xs font-bold"></span>
                                                     </div>
-                                                    <code id="response-url-${catIndex}-${endpointIndex}" class="block break-all bg-gray-900 border border-gray-700 p-2 text-indigo-300"></code>
+                                                    <span id="latency-badge-${catIndex}-${endpointIndex}" class="text-gray-400 flex items-center gap-1"></span>
                                                 </div>
-                                                <div>
-                                                    <div class="flex items-center justify-between mb-1">
-                                                        <span class="text-slate-400 font-semibold">cURL Command</span>
-                                                        <button type="button" onclick="copyText('response-curl-${catIndex}-${endpointIndex}', this)" class="text-xs px-2 py-1 border border-gray-600 hover:border-indigo-500 text-slate-300 transition-colors duration-150">Copy cURL</button>
+                                                <div class="px-4 py-3 border-b border-gray-700 space-y-3">
+                                                    <div>
+                                                        <div class="flex items-center justify-between mb-1">
+                                                            <span class="text-gray-400">Request URL:</span>
+                                                            <button type="button" onclick="copyToClipboard('url-text-${catIndex}-${endpointIndex}', this)" class="px-2 py-0.5 bg-gray-700 hover:bg-gray-600 border border-gray-600 rounded text-xs">Copy URL</button>
+                                                        </div>
+                                                        <code id="url-text-${catIndex}-${endpointIndex}" class="block break-all bg-gray-800 border border-gray-700 rounded px-2 py-1 text-indigo-300"></code>
                                                     </div>
-                                                    <code id="response-curl-${catIndex}-${endpointIndex}" class="block break-all bg-gray-900 border border-gray-700 p-2 text-slate-300"></code>
+                                                    <div>
+                                                        <div class="flex items-center justify-between mb-1">
+                                                            <span class="text-gray-400">cURL Command:</span>
+                                                            <button type="button" onclick="copyToClipboard('curl-text-${catIndex}-${endpointIndex}', this)" class="px-2 py-0.5 bg-gray-700 hover:bg-gray-600 border border-gray-600 rounded text-xs">Copy cURL</button>
+                                                        </div>
+                                                        <code id="curl-text-${catIndex}-${endpointIndex}" class="block break-all bg-gray-800 border border-gray-700 rounded px-2 py-1"></code>
+                                                    </div>
                                                 </div>
-                                            </div>
-
-                                            <div class="flex items-center justify-end gap-2 mb-2">
-                                                <button type="button" id="download-btn-${catIndex}-${endpointIndex}" onclick="downloadResponse(${catIndex}, ${endpointIndex})" class="hidden text-xs px-3 py-1 border border-gray-600 hover:border-indigo-500 text-slate-300 transition-colors duration-150 flex items-center gap-1">
-                                                    <span class="material-icons" style="font-size:14px;">download</span> Download
-                                                </button>
-                                                <button type="button" id="copy-response-btn-${catIndex}-${endpointIndex}" onclick="copyText('response-content-${catIndex}-${endpointIndex}', this)" class="hidden text-xs px-3 py-1 border border-gray-600 hover:border-indigo-500 text-slate-300 transition-colors duration-150">Copy Response</button>
-                                            </div>
-
-                                            <div class="bg-gray-900 text-white text-xs p-4 border border-gray-700">
-                                                <div class="max-h-80 overflow-auto" id="response-content-${catIndex}-${endpointIndex}"></div>
+                                                <div class="px-4 py-3">
+                                                    <div class="flex items-center justify-end mb-2 gap-2" id="response-actions-${catIndex}-${endpointIndex}"></div>
+                                                    <div class="max-h-80 overflow-auto" id="response-content-${catIndex}-${endpointIndex}"></div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>

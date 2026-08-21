@@ -168,12 +168,77 @@
         }
     }
 
+    const responseMediaStore = {};
+
+    const HTTP_STATUS_MAP = {
+        200: 'OK — Request successful',
+        400: 'Bad Request — Invalid parameters',
+        401: 'Unauthorized — Invalid or missing API key',
+        403: 'Forbidden — Access denied',
+        404: 'Not Found — Resource not found',
+        429: 'Too Many Requests — Rate limit exceeded',
+        500: 'Internal Server Error — Server error'
+    };
+
+    function getStatusDescription(code) {
+        if (HTTP_STATUS_MAP[code]) return HTTP_STATUS_MAP[code];
+        if (code >= 200 && code < 300) return 'Success';
+        if (code >= 300 && code < 400) return 'Redirection';
+        if (code >= 400 && code < 500) return 'Client Error';
+        if (code >= 500) return 'Server Error';
+        return 'Unknown Status';
+    }
+
+    function setStatusTable(codeEl, descEl, code) {
+        const isSuccess = code >= 200 && code < 300;
+        const colorClass = isSuccess ? 'text-green-400' : 'text-red-400';
+        codeEl.textContent = code;
+        codeEl.className = `px-2 py-1 border border-gray-700 font-bold bg-gray-900 ${colorClass}`;
+        descEl.textContent = getStatusDescription(code);
+        descEl.className = `px-2 py-1 border border-gray-700 bg-gray-900 ${colorClass}`;
+    }
+
+    function copyText(elementId, btnEl) {
+        const el = document.getElementById(elementId);
+        if (!el) return;
+        const text = el.textContent;
+        if (!text) return;
+        navigator.clipboard.writeText(text).then(() => {
+            const original = btnEl.dataset.label || btnEl.textContent;
+            btnEl.dataset.label = original;
+            btnEl.textContent = '✓ Copied';
+            btnEl.classList.add('text-green-400', 'border-green-500');
+            setTimeout(() => {
+                btnEl.textContent = original;
+                btnEl.classList.remove('text-green-400', 'border-green-500');
+            }, 2000);
+        }).catch(() => {});
+    }
+
+    function downloadResponse(catIndex, endpointIndex) {
+        const media = responseMediaStore[`${catIndex}-${endpointIndex}`];
+        if (!media) return;
+        const a = document.createElement('a');
+        a.href = media.url;
+        a.download = media.filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    }
+
     async function executeRequest(event, catIndex, endpointIndex, method, path, produces) {
         event.preventDefault();
         const form = document.getElementById(`form-${catIndex}-${endpointIndex}`);
         const responseDiv = document.getElementById(`response-${catIndex}-${endpointIndex}`);
         const responseContent = document.getElementById(`response-content-${catIndex}-${endpointIndex}`);
         const clearButton = document.getElementById(`clear-${catIndex}-${endpointIndex}`);
+        const statusCodeCell = document.getElementById(`response-status-code-${catIndex}-${endpointIndex}`);
+        const statusDescCell = document.getElementById(`response-status-desc-${catIndex}-${endpointIndex}`);
+        const timeValue = document.getElementById(`response-time-value-${catIndex}-${endpointIndex}`);
+        const urlCode = document.getElementById(`response-url-${catIndex}-${endpointIndex}`);
+        const curlCode = document.getElementById(`response-curl-${catIndex}-${endpointIndex}`);
+        const downloadBtn = document.getElementById(`download-btn-${catIndex}-${endpointIndex}`);
+        const copyResponseBtn = document.getElementById(`copy-response-btn-${catIndex}-${endpointIndex}`);
 
         const formData = new FormData(form);
         const params = new URLSearchParams();
@@ -184,25 +249,71 @@
         }
 
         const fullPath = `${path}?${params.toString()}`;
+        const fullUrl = `${window.location.origin}${fullPath}`;
+        const curlCmd = `curl -X ${method} "${fullUrl}"`;
+
         responseDiv.classList.remove('hidden');
         responseContent.innerHTML = '<div class="loader"></div>';
+        statusCodeCell.textContent = '...';
+        statusCodeCell.className = 'px-2 py-1 border border-gray-700 font-bold bg-gray-900 text-slate-400';
+        statusDescCell.textContent = 'Waiting for response...';
+        statusDescCell.className = 'px-2 py-1 border border-gray-700 bg-gray-900 text-slate-400';
+        timeValue.textContent = '';
+        urlCode.textContent = fullUrl;
+        curlCode.textContent = curlCmd;
+        downloadBtn.classList.add('hidden');
+        copyResponseBtn.classList.add('hidden');
 
+        const mediaKey = `${catIndex}-${endpointIndex}`;
+        if (responseMediaStore[mediaKey]) {
+            URL.revokeObjectURL(responseMediaStore[mediaKey].url);
+            delete responseMediaStore[mediaKey];
+        }
+
+        const tStart = performance.now();
         try {
             const response = await fetch(fullPath);
-            const contentType = response.headers.get("content-type");
-            if (contentType && contentType.includes("application/json")) {
+            const latency = (performance.now() - tStart).toFixed(0);
+            timeValue.textContent = `${latency} ms`;
+
+            setStatusTable(statusCodeCell, statusDescCell, response.status);
+
+            const contentType = response.headers.get("content-type") || '';
+
+            if (contentType.includes("application/json")) {
                 const data = await response.json();
                 responseContent.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
-            } else if (contentType && contentType.startsWith("image/")) {
+                copyResponseBtn.classList.remove('hidden');
+            } else if (contentType.startsWith("image/") || contentType.startsWith("video/") || contentType.startsWith("audio/")) {
                 const blob = await response.blob();
-                const imageUrl = URL.createObjectURL(blob);
-                responseContent.innerHTML = `<img src="${imageUrl}" class="max-w-full h-auto rounded-md">`;
+                const mediaUrl = URL.createObjectURL(blob);
+                const subtype = (contentType.split('/')[1] || 'bin').split(';')[0];
+                const filename = `response-${catIndex}-${endpointIndex}.${subtype}`;
+
+                if (contentType.startsWith("image/")) {
+                    responseContent.innerHTML = `<img src="${mediaUrl}" class="max-w-full h-auto rounded-md">`;
+                } else if (contentType.startsWith("video/")) {
+                    responseContent.innerHTML = `<video src="${mediaUrl}" controls class="max-w-full h-auto rounded-md"></video>`;
+                } else {
+                    responseContent.innerHTML = `<audio src="${mediaUrl}" controls class="w-full"></audio>`;
+                }
+
+                responseMediaStore[mediaKey] = { url: mediaUrl, filename };
+                downloadBtn.classList.remove('hidden');
             } else {
                 const text = await response.text();
                 responseContent.innerHTML = `<pre>${text}</pre>`;
+                copyResponseBtn.classList.remove('hidden');
             }
         } catch (error) {
+            const latency = (performance.now() - tStart).toFixed(0);
+            timeValue.textContent = `${latency} ms`;
+            statusCodeCell.textContent = 'ERR';
+            statusCodeCell.className = 'px-2 py-1 border border-gray-700 font-bold bg-gray-900 text-red-400';
+            statusDescCell.textContent = 'Network Error — Request failed';
+            statusDescCell.className = 'px-2 py-1 border border-gray-700 bg-gray-900 text-red-400';
             responseContent.innerHTML = `<pre>${error}</pre>`;
+            copyResponseBtn.classList.remove('hidden');
         }
         clearButton.classList.remove('hidden');
     }
@@ -211,7 +322,28 @@
         const responseDiv = document.getElementById(`response-${catIndex}-${endpointIndex}`);
         const responseContent = document.getElementById(`response-content-${catIndex}-${endpointIndex}`);
         const clearButton = document.getElementById(`clear-${catIndex}-${endpointIndex}`);
+        const statusCodeCell = document.getElementById(`response-status-code-${catIndex}-${endpointIndex}`);
+        const statusDescCell = document.getElementById(`response-status-desc-${catIndex}-${endpointIndex}`);
+        const timeValue = document.getElementById(`response-time-value-${catIndex}-${endpointIndex}`);
+        const urlCode = document.getElementById(`response-url-${catIndex}-${endpointIndex}`);
+        const curlCode = document.getElementById(`response-curl-${catIndex}-${endpointIndex}`);
+        const downloadBtn = document.getElementById(`download-btn-${catIndex}-${endpointIndex}`);
+
+        const mediaKey = `${catIndex}-${endpointIndex}`;
+        if (responseMediaStore[mediaKey]) {
+            URL.revokeObjectURL(responseMediaStore[mediaKey].url);
+            delete responseMediaStore[mediaKey];
+        }
+
         responseContent.innerHTML = '';
+        statusCodeCell.textContent = '';
+        statusCodeCell.className = 'px-2 py-1 border border-gray-700 font-bold bg-gray-900';
+        statusDescCell.textContent = '';
+        statusDescCell.className = 'px-2 py-1 border border-gray-700 bg-gray-900';
+        timeValue.textContent = '';
+        urlCode.textContent = '';
+        curlCode.textContent = '';
+        downloadBtn.classList.add('hidden');
         responseDiv.classList.add('hidden');
         clearButton.classList.add('hidden');
     }
@@ -357,10 +489,58 @@
 
                     html += `
                                         <div id="response-${catIndex}-${endpointIndex}" class="hidden mt-4">
-                                            <div class="text-gray-300 font-bold text-xs mb-2 flex items-center">
-                                                <span class="material-icons text-sm mr-1">code</span>
-                                                RESPONSE
+                                            <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
+                                                <div class="text-gray-300 font-bold text-xs flex items-center">
+                                                    <span class="material-icons text-sm mr-1">code</span>
+                                                    RESPONSE
+                                                </div>
+                                                <span class="text-xs font-semibold text-slate-400 bg-gray-800 border border-gray-700 px-2 py-1 flex items-center gap-1">
+                                                    <span class="material-icons" style="font-size:12px;">bolt</span>
+                                                    <span id="response-time-value-${catIndex}-${endpointIndex}"></span>
+                                                </span>
                                             </div>
+
+                                            <div class="bg-gray-800 border border-gray-700 p-3 mb-2 text-xs space-y-3">
+                                                <div>
+                                                    <span class="text-slate-400 font-semibold block mb-1">Response Status</span>
+                                                    <table class="w-full border border-gray-700 border-collapse">
+                                                        <thead>
+                                                            <tr class="bg-gray-900 text-slate-400">
+                                                                <th class="px-2 py-1 border border-gray-700 text-left" style="width:70px;">Code</th>
+                                                                <th class="px-2 py-1 border border-gray-700 text-left">Description</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            <tr>
+                                                                <td id="response-status-code-${catIndex}-${endpointIndex}" class="px-2 py-1 border border-gray-700 font-bold bg-gray-900"></td>
+                                                                <td id="response-status-desc-${catIndex}-${endpointIndex}" class="px-2 py-1 border border-gray-700 bg-gray-900"></td>
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                                <div>
+                                                    <div class="flex items-center justify-between mb-1">
+                                                        <span class="text-slate-400 font-semibold">Request URL</span>
+                                                        <button type="button" onclick="copyText('response-url-${catIndex}-${endpointIndex}', this)" class="text-xs px-2 py-1 border border-gray-600 hover:border-indigo-500 text-slate-300 transition-colors duration-150">Copy URL</button>
+                                                    </div>
+                                                    <code id="response-url-${catIndex}-${endpointIndex}" class="block break-all bg-gray-900 border border-gray-700 p-2 text-indigo-300"></code>
+                                                </div>
+                                                <div>
+                                                    <div class="flex items-center justify-between mb-1">
+                                                        <span class="text-slate-400 font-semibold">cURL Command</span>
+                                                        <button type="button" onclick="copyText('response-curl-${catIndex}-${endpointIndex}', this)" class="text-xs px-2 py-1 border border-gray-600 hover:border-indigo-500 text-slate-300 transition-colors duration-150">Copy cURL</button>
+                                                    </div>
+                                                    <code id="response-curl-${catIndex}-${endpointIndex}" class="block break-all bg-gray-900 border border-gray-700 p-2 text-slate-300"></code>
+                                                </div>
+                                            </div>
+
+                                            <div class="flex items-center justify-end gap-2 mb-2">
+                                                <button type="button" id="download-btn-${catIndex}-${endpointIndex}" onclick="downloadResponse(${catIndex}, ${endpointIndex})" class="hidden text-xs px-3 py-1 border border-gray-600 hover:border-indigo-500 text-slate-300 transition-colors duration-150 flex items-center gap-1">
+                                                    <span class="material-icons" style="font-size:14px;">download</span> Download
+                                                </button>
+                                                <button type="button" id="copy-response-btn-${catIndex}-${endpointIndex}" onclick="copyText('response-content-${catIndex}-${endpointIndex}', this)" class="hidden text-xs px-3 py-1 border border-gray-600 hover:border-indigo-500 text-slate-300 transition-colors duration-150">Copy Response</button>
+                                            </div>
+
                                             <div class="bg-gray-900 text-white text-xs p-4 border border-gray-700">
                                                 <div class="max-h-80 overflow-auto" id="response-content-${catIndex}-${endpointIndex}"></div>
                                             </div>

@@ -64,27 +64,17 @@ async function downloadVideo(targetUrl) {
     }
 }
 
-module.exports = function (app) {
-    app.get('/download/downr', async (req, res) => {
-        const { url } = req.query;
-        if (!url) {
-            return res.status(400).json({
-                status: false,
-                message: 'URL parameter required'
-            });
-        }
+(async () => {
+    const targetUrl = process.argv[2];
+    if (!targetUrl) {
+        console.log('❌ node downr.js <URL>');
+        process.exit(1);
+    }
 
-        try {
-            const data = await downloadVideo(url);
-            res.status(200).json({
-                status: true,
-                result: data
-            });
-        } catch (error) {
-            res.status(500).json({
-                status: false,
-                message: error.message
-            });
-        }
-    });
-                }
+    try {
+        const data = await downloadVideo(targetUrl);
+        console.log('\n✅ SUKSES:\n', JSON.stringify(data, null, 2));
+    } catch (e) {
+        console.error('Gagal:', e.message);
+    }
+})();

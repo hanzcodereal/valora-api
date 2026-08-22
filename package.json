@@ -40,6 +40,8 @@
     "pdfkit": "0.17.1",
     "@rynn-k/proxy-agent": "latest",
     "https-proxy-agent": "latest",
-    "@vercel/analytics": "latest"
+    "@vercel/analytics": "latest",
+    "tough-cookie": "^4.1.3",
+    "axios-cookiejar-support": "^4.0.6"
   }
 }
